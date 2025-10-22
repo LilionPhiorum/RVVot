@@ -16,7 +16,7 @@ host="127.0.0.1"#localhost
 port=50021
 
 ready=False#音声生成許可
-pre_read_channel=None#読み上げチャンネルの設定
+read_channel=[]#読み上げチャンネル設定
 
 #discord
 #=============================
@@ -27,23 +27,53 @@ async def on_ready():
 @bot.command()
 async def on(order):#VC接続コマンド
     global ready#グローバル変数のreadyを用いる(pythonだと関数内だけの変更になるからそうでないことを明記)
-    global pre_read_channel
-    if order.author.voice:#送信者がボイスチャットに接続している    
-        if order.guild.voice_client:
-            await order.channel.send("接続済み")
-            await off(order)
+    global read_channel
+    if order.author.voice:#送信者がボイスチャットに接続している       
+        if order.guild.voice_client:#ボイスチャンネルに接続している場合
+            await off(order)#一度切って接続をする
         voice_channel = order.author.voice.channel#接続チャンネルを送信者のチャンネルに設定
-        ready=True
-        pre_read_channel=order.channel
+        ready=True#読み上げ開始
+        read_channel.append(order.channel)#読み上げ対象チャンネルに追加
         await voice_channel.connect()
+
+
+
+@bot.command()
+async def add(order):#読み上げチャンネル追加コマンド
+    global read_channel
+    if not order.channel in read_channel:
+        read_channel.append(order.channel)
+
+
+
+@bot.command()
+async def remove(order):#読み上げチャンネル削除コマンド
+    global read_channel
+    if order.channel in read_channel:
+        read_channel.remove(order.channel)
+
+
 
 @bot.command()
 async def off(order):#VC離脱コマンド
     global ready
+    global read_channel
     for vc in bot.voice_clients:#bot接続チャンネルを取得
         if vc.guild == order.guild:#接続サーバーと現サーバーの一致確認
             ready=False
+            read_channel=[]#読み上げチャンネルの初期化
             await vc.disconnect()
+
+
+
+#検査用コマンド
+@bot.command()
+async def read_place(order):
+    global read_channel
+    if order.channel in read_channel:
+        await order.channel.send("focused")
+    else:
+        await order.channel.send("out of sight")
 #=============================
 
 #API[VOICEBOX]
@@ -57,12 +87,14 @@ async def connection_state(order):#接続状態確認コマンド
     except socket.error:#接続ができなかった場合
         await order.channel.send("Connection Faild")
 
+
+
 @bot.event
 async def on_message(msg):
     if msg.content.startswith(bot.command_prefix):#コマンドであるプレフィックス(「.」)の場合
         await bot.process_commands(msg)#コマンドの場合コマンドを実行する
     else:
-        if ready and not msg.author.bot and msg.channel==pre_read_channel:
+        if ready and not msg.author.bot and msg.channel in read_channel:
             #文言,話者設定
             talking_setting = (
                 ('text', msg.content),
