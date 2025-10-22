@@ -1,130 +1,125 @@
 import discord
-from discord.ext import commands#botの制御に使用
-from discord import app_commands#botコマンド動作に使用
-from discord import FFmpegPCMAudio
+from discord.ext import commands#bot操作
+from discord import app_commands#コマンド
+from discord import FFmpegPCMAudio#
 import requests
 import json
 import io
 import socket
 import re
+import emoji
 
 intents = discord.Intents.default()
-intents.message_content=True#メッセージ内容の読み取り許可
+intents.message_content=True#メッセージ読み取りの許可
 client = discord.Client(intents=intents)
 tree = app_commands.CommandTree(client)
 
 host="127.0.0.1"#localhost
 port=50021
 
-readChannel=[]#読み上げ対象となるチャンネル
+readChannel=[]#read channel 
 
-#URLの予測を立てるのに利用
-patternURL = re.compile(r'https?://(?:[-\w.]|(?:%[\da-fA-F]{2}))+(?:[-\w./?%&=]*)')
-
-#絵文字の予測を立てるのに利用
-patternEmoji = re.compile(r':[a-zA-Z0-9_]+:')
-
-#discordのカスタム絵文字の予測を立てるのに利用
-patternCustomizedEmoji = re.compile(r'<:[a-zA-Z0-9_]+:[0-9]+>')
-
-#起動時
+#awake
 #===============================================================
 @client.event
 async def on_ready():
     await tree.sync()#コマンド同期
     print("awaked")
-
-
-
-#検証化用関数
 #===============================================================
-#VOICEVOXとの接続確認コマンド
+
+#discord condition checking
+#===============================================================
+"""connecting VOICEVOX"""
 def VOICEVOX_Connection(interaction:discord.Interaction):
     try:
-        test=socket.create_connection((host, port), timeout=1)#接続確立
-        test.close()#testの終了
+        test=socket.create_connection((host, port), timeout=1)#接続
+        test.close()
         return True
-    except socket.error:#接続ができなかった場合
+    except socket.error:#接続不可
         return False
 
-#指令者がbotでないことの確認
-def isUser(interaction):#引数はinteraction
+"""order isn't bot"""
+def isUser(interaction):
     return not(interaction.user.bot)
 
-#指令者がVCに入っていることを確認
-def isUserTalking(interaction):#引数はinteraction
-    #notをつけない場合、voiceの中身すべてが出されるが、notを入れることでboolになる
+"""order is joinning VC"""
+def isUserTalking(interaction):
+    #convert to bool by adding not
     return not not interaction.user.voice
 
-#botがVCに入っていることを確認
+"""bot is joinning VC"""
 def is_bot_reading(interaction):
     return not not interaction.guild.voice_client
-
-def PredictedURL(msg):#URLが含まれていることを検知する
-    return patternURL.search(msg.content)
-
-def PredictedEmoji(msg):
-    return (patternEmoji.search(msg.content) and patternCustomizedEmoji.search(msg.content))
 #===============================================================
 
-
-
-#簡略化用関数
+#discord's function
 #===============================================================
-#応答を返す
+"""send hidden message"""
 async def HiddenResponse(interaction,cont:str=None):#引数はinteractionとメッセージ内容
     if cont != None:
         await interaction.response.send_message(cont,ephemeral=True)
     else:
         await interaction.response.send_message("none content",ephemeral=True)
 
-#接続コマンド
+"""connect VC"""
 async def ConnectVoiceChannel(interaction,msg:str=None):#interaction,応答内容
-    global readChannel#変更を行うならglobal宣言が必要
+    global readChannel
     readChannel.append(interaction.channel)
     await interaction.user.voice.channel.connect()
     await HiddenResponse(interaction,msg)
 
-#切断コマンド
+"""disconnect VC"""
 async def DisconnectVoiceChannel(interaction,msg:str=None):#interaction,応答内容
-    global readChannel#変更を行うならglobal宣言が必要
+    global readChannel
     await interaction.guild.voice_client.disconnect()
     readChannel=[]
     await HiddenResponse(interaction,msg)
 
-#追加コマンド
+"""add read up channel"""
 async def AddReadChannel(interaction,msg:str=None):
-    global readChannel#変更を行うならglobal宣言が必要
+    global readChannel
     readChannel.append(interaction.channel)
     await HiddenResponse(interaction,msg)
 
-#除外コマンド
+"""remove read up channel"""
 async def RemoveReadChannel(interaction,msg:str=None):
-    global readChannel#変更を行うならglobal宣言が必要
+    global readChannel
     readChannel.remove(interaction.channel)
     await HiddenResponse(interaction,msg)
+#===============================================================
 
-#URL除去
+#URL
+#===============================================================
+"""predict URL"""
+patternURL = re.compile(r'https?://(?:[-\w.]|(?:%[\da-fA-F]{2}))+(?:[-\w./?%&=]*)')
+
+"""check including URL"""
+def PredictedURL(msg):
+    return patternURL.search(msg.content)
+
+"""remove URL from message"""
 def RemoveURL(msg):
     return patternURL.sub("",msg.content)
+#===============================================================
 
-#絵文字除去
+#Emoji(yet)
+#===============================================================
+# """predict Emoji"""
+# patternEmoji = re.compile(r':[a-zA-Z0-9_]+:')#ディスコードの絵文字形式
+
+"""predict discord's customized emoji"""
+patternCustomizedEmoji = re.compile(r'<:[a-zA-Z0-9_]+:[0-9]+>')
+
+"""predict including Emoji"""
+def PredictedEmoji(msg):
+    return emoji.emoji_count(msg.content)!=0 or patternCustomizedEmoji.search(msg.content)
+
 def RemoveEmoji(msg):
-    return patternEmoji.sub("",patternCustomizedEmoji.sub("",msg.content))
+    
+    return emoji.replace_emoji(patternCustomizedEmoji.sub("",msg.content),"")
 #===============================================================
 
-
-
-#試験用コマンド
-#===============================================================
-@tree.command(name="test",description="応答ありの関数のテスト")
-async def Tester(interaction:discord.Interaction):
-    #await HiddenResponse(interaction,"-..-")
-    await interaction.response.send_message(not isUserTalking(interaction))
-#===============================================================
-
-
-#エラーメッセージ
+#error message
 #===============================================================
 async def CommonErrorMessage(interaction):
     if not(VOICEVOX_Connection(interaction)):#can't check connecting VOICEVOX
@@ -135,10 +130,9 @@ async def CommonErrorMessage(interaction):
         await HiddenResponse(interaction,"未知のエラーです")
 #===============================================================
 
-
-#bot
+#command
 #===============================================================
-#コマンドを起動したユーザーのいるボイスチャンネルに参加するコマンド
+"""join order's VC"""
 @tree.command(name="on",description="VCへの参加し、コマンドを利用したテキストチャンネルの読み上げを開始")
 async def On(interaction:discord.Interaction,force:bool=False) :
     global readChannel#変更を行うならglobal宣言が必要
@@ -166,7 +160,7 @@ async def On(interaction:discord.Interaction,force:bool=False) :
         else:
             await CommonErrorMessage(interaction)
 
-#読み上げチャンネルへの追加
+"""add read up channel"""
 @tree.command(name="add",description="コマンドを利用したテキストチャンネルを読み上げ対象として追加")
 async def Add(interaction:discord.Interaction):
     global readChannel#変更を行うならglobal宣言が必要
@@ -186,7 +180,7 @@ async def Add(interaction:discord.Interaction):
         else:#error
             await CommonErrorMessage(interaction)
 
-#読み上げチャンネルからの除外
+"""remove from read up channel"""
 @tree.command(name="remove",description="コマンドを利用したテキストチャンネルを読み上げ対象として追加")
 async def Remove(interaction:discord.Interaction):
     global readChannel
@@ -201,7 +195,7 @@ async def Remove(interaction:discord.Interaction):
         else:
             await CommonErrorMessage(interaction)
 
-#現在いるボイスチャンネルから離脱するコマンド(どのテキストチャンネルでも実行する)
+"""disconnect VC(any channel)"""
 @tree.command(name="off",description="VCからの離脱")
 async def Remove(interaction:discord.Interaction):
     global readChannel
@@ -243,6 +237,8 @@ async def SynthesizeVoice(msg):
             voice_client.play(audio_source)
 #===============================================================
 
+#基本状況
+#===============================================================
 @client.event
 async def on_message(msg):
     print(msg.content)
@@ -253,14 +249,21 @@ async def on_message(msg):
     #絵文字の処理
     #未完成
     if PredictedEmoji(msg):
-        print("in")
-        msg.content=Remove(msg)
+        msg.content = RemoveEmoji(msg)
     #メッセージなしの場合(スタンプ、メッセージなしのファイル送信)
     if not(msg.content.strip()):
         print("Ignored because it was predicted as an non-message")
     else:
         #print(msg.content)
         await SynthesizeVoice(msg)
-
 #===============================================================
+
+#試験用コマンド
+#===============================================================
+@tree.command(name="test",description="応答ありの関数のテスト")
+async def Tester(interaction:discord.Interaction):
+    # await HiddenResponse(interaction,"-..-")
+    await interaction.response.send_message(not isUserTalking(interaction))
+#===============================================================
+
 client.run("")
