@@ -5,17 +5,14 @@ from discord import app_commands#コマンド
 from discord import FFmpegPCMAudio
 import io
 #original module
-import rv_voicevox
-import rv_remove_empty
+import rv_voicevox as RV_voicevox
+import rv_remove as RV_modify
 import test
 
 intents = discord.Intents.default()
 intents.message_content=True#メッセージ読み取りの許可
 client = discord.Client(intents=intents)
 tree = app_commands.CommandTree(client)
-
-rmemp=rv_remove_empty
-vv=rv_voicevox
 
 readChannel=[]
 
@@ -25,7 +22,7 @@ readChannel=[]
 @client.event
 async def on_ready():
     await tree.sync()#コマンド同期
-    print("ver 3.4 awaked")
+    print("ver 3.6 awaked")
 #===============================================================
 
 #discord condition checking
@@ -83,7 +80,7 @@ async def remove_read_channel(interaction,msg:str=None):
 #error message
 #===============================================================
 async def common_error_message(interaction):
-    if not(vv.isConnect(interaction)):#can't check connecting VOICEVOX
+    if not(RV_voicevox.isConnect(interaction)):#can't check connecting VOICEVOX
         await hidden_response(interaction,"VOICEVOXとの接続ができていません")
     elif not(is_user(interaction)):#error : the order by bot
         await hidden_response(interaction,"botによるコマンドは受け付けていません")
@@ -169,18 +166,6 @@ async def off(interaction:discord.Interaction):
             await common_error_message(interaction)
 #===============================================================
 
-#音声合成
-#===============================================================
-async def synthesize_voice(msg):
-    #voiceコマンド(chgVoiceメソッド)完成までの一時設定
-    talking_setting = (
-        ('text', msg.content),
-        ('speaker', 10),
-    )
-    #===========================================
-    return vv.gene_voice(msg,talking_setting)
-#===============================================================
-
 #基本状況
 #===============================================================
 @client.event
@@ -189,12 +174,12 @@ async def on_message(msg):
     global readChannel#変更を行うならglobal宣言が必要->いらない？これの整理をする
     #botでなく、読み上げ対象のチャンネルである場合
     if (not msg.author.bot) and (msg.channel in readChannel):
-        msg=rmemp.remove(msg) #文字列にURL,emojiが含まれる場合はそれを取り除き、その上で記号のみなら空文字を返す
+        msg.content=RV_modify.Empty.remove(msg.content) #文字列にURL,emojiが含まれる場合はそれを取り除き、その上で記号のみなら空文字を返す
         if not(msg.content.strip()):
             print("Ignored because it was predicted as an non-message")
         else:
             #print(msg.content)
-            voice = await synthesize_voice(msg)
+            voice = await RV_voicevox.synthesize_voice(msg.content)
             audio_stream=io.BytesIO(voice)#音声変換1
             audio_source=FFmpegPCMAudio(audio_stream,pipe=True)#音声変換2
             voice_client = discord.utils.get(client.voice_clients, guild=msg.guild)

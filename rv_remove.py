@@ -1,52 +1,50 @@
+import fugashi
 import re
 import emoji
-import fugashi
 
-class _URL:
-  _patternURL = re.compile(r'https?://(?:[-\w.]|(?:%[\da-fA-F]{2}))+(?:[-\w./?%&=]*)')
-
-  """check including URL"""
-  @staticmethod
-  def is_include(msg):
-    return bool(_URL._patternURL.search(msg.content))
-
-  """remove URL from message"""
-  def remove(msg):
-    msg.content=_URL._patternURL.sub("",msg.content)
-    return msg
-
-
-
-class _Emoji:
+class _EMOJI:
   """predict discord's customized emoji"""
-  _patternCustomizedEmoji = re.compile(r'<:[a-zA-Z0-9_]+:[0-9]+>')
+  patternCustomizedEmoji = re.compile(r'<:[a-zA-Z0-9_]+:[0-9]+>')
 
   """predict including Emoji"""
-  def is_include(msg):
-    return bool(emoji.emoji_count(msg.content)!=0 or _Emoji._patternCustomizedEmoji.search(msg.content))
+  def predicted(msg_content):
+      return emoji.emoji_count(msg_content)!=0 or _EMOJI.patternCustomizedEmoji.search(msg_content)
 
-  def remove(msg):
-    return emoji.replace_emoji(_Emoji._patternCustomizedEmoji.sub("",msg.content),"")
+  def remove(msg_content):
+      return emoji.replace_emoji(_EMOJI.patternCustomizedEmoji.sub("",msg_content),"")
   
 
+
+class _URL:
+  """predict URL"""
+  patternURL = re.compile(r'https?://(?:[-\w.]|(?:%[\da-fA-F]{2}))+(?:[-\w./?%&=]*)')
+
+  """check including URL"""
+  def predicted(msg_content):
+      return _URL.patternURL.search(msg_content)
+
+  """remove URL from message"""
+  def remove(msg_content):
+      msg_content=_URL.patternURL.sub("",msg_content)
+      return msg_content
+  
 
 class Empty:
-  _tagger = fugashi.Tagger()
-  _is_empty:bool
+  tagger = fugashi.Tagger()
 
-  def is_only_symbol(msg):
-    check = msg
-    check.content = _Emoji.remove(_URL.remove(msg))
-    for word in Empty._tagger(check.content):
-        if word.feature.pos1 not in ["補助記号", "特殊","記号"]:# 記号以外がある場合
-            return False  
-    return True
+  def is_only_symbol(msg_content):
+      check = msg_content
+      check = _EMOJI.remove(_URL.remove(msg_content))
+      for word in Empty.tagger(check):
+          if word.feature.pos1 not in ["補助記号", "特殊","記号"]:# 記号以外がある場合
+              return False  
+      return True
 
-  def is_include(msg):
-    return (_URL.is_include(msg) or _Emoji.is_include(msg) or Empty.is_only_symbol(msg))
-  
-  def remove(msg):
-    msg.content=_Emoji.remove(_URL.remove(msg))
-    if(Empty.is_only_symbol(msg)):
-        msg.content=""
-    return msg
+  def predicted(msg_content):
+      return (_URL.predicted(msg_content) or _EMOJI.predicted(msg_content) or Empty.is_only_symbol(msg_content))
+
+  def remove(msg_content):
+      msg_content=_EMOJI.remove(_URL.remove(msg_content))
+      if(Empty.is_only_symbol(msg_content)):
+          msg_content=""
+      return msg_content
