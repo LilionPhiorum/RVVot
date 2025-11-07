@@ -17,7 +17,7 @@ def is_connect(interaction: discord.Interaction):
         return False
 
 #音声合成用クエリ作成
-def gene_voice(msg,talking_setting):
+def _gene_voice(talking_setting):
     query=requests.post(
     f'http://{host}:{port}/audio_query',
             params=talking_setting
@@ -30,3 +30,12 @@ def gene_voice(msg,talking_setting):
             data = json.dumps(query.json())
         )
     return synthesis.content
+
+async def synthesize_voice(msg_content):
+    #voiceコマンド(chgVoiceメソッド)完成までの一時設定
+    talking_setting = (
+        ('text', msg_content),
+        ('speaker', 10),
+    )
+    #===========================================
+    return _gene_voice(talking_setting)
