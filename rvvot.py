@@ -35,7 +35,7 @@ TOKEN = os.getenv("BOT_TOKEN")
 async def on_ready():
   await tree.sync()#コマンド同期
   RV_voicevox.VoiceSet.load_voice()#音声設定同期
-  print("ver 4.0 awaked")
+  print("ver 4.1 awaked")
 #===============================================================
 
 #discord condition checking
