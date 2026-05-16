@@ -1,0 +1,10 @@
+discord.py
+discord.py[voice]
+pynacl
+requests
+bidict
+fugashi
+unidic-lite
+emoji
+
+load_dotenv
