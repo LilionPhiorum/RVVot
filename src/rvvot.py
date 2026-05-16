@@ -5,8 +5,9 @@ from discord import app_commands#コマンド
 from discord.app_commands import Choice
 from discord import FFmpegPCMAudio
 import io
-from dotenv import load_dotenv
 import os
+from dotenv import load_dotenv
+from pathlib import Path
 #original module
 import rv_voicevox as RV_voicevox
 import rv_modify as RV_modify
@@ -19,15 +20,15 @@ client = discord.Client(intents=intents)
 tree = app_commands.CommandTree(client)
 
 readChannel=[]
-voice_dic = RV_voicevox.VoiceSet.mk_dic();#名前とidの対応表
 
-#botのトークンの読み込み
-load_dotenv()
-TOKEN = os.getenv("BOT_TOKEN")
-
-#for other commands
-
-
+def main():
+  #botのトークンの読み込み
+  #ローカルはenvから、dockerは環境変数から読み込む(正確にはloadenvするので環境変数ではあるが)
+  envpath = Path(__file__).parent.parent / ".env"
+  if os.path.exists(envpath):
+    load_dotenv(envpath)
+  TOKEN = os.environ.get("BOT_TOKEN")
+  client.run(TOKEN)
 
 #awake
 #===============================================================
@@ -35,7 +36,7 @@ TOKEN = os.getenv("BOT_TOKEN")
 async def on_ready():
   await tree.sync()#コマンド同期
   RV_voicevox.VoiceSet.load_voice()#音声設定同期
-  print("ver 4.1 awaked")
+  print("ver 4.2 awaked")
 #===============================================================
 
 #discord condition checking
@@ -224,9 +225,9 @@ noticeChannelID = None
 
 def _load_notice_channel_id():
   """othercommands.txt の noticeChannel 直下の行からID(int)を取得"""
-  file_path = os.path.join(os.path.dirname(__file__), "othercommands.txt")
+  DB = Path(__file__).parent.parent / "data" / "othercommands.txt"
   try:
-    with open(file_path, "r", encoding="utf-8") as f:
+    with open(DB, "r", encoding="utf-8") as f:
       lines = f.readlines()
     idx = next((i for i, l in enumerate(lines) if l.strip() == "noticeChannel"), None)
     if idx is not None and idx + 1 < len(lines):
@@ -241,11 +242,11 @@ async def zset(interaction: discord.Interaction):
   global noticeChannelID
   noticeChannelID = interaction.channel.id  # 数値IDを保持
 
-  file_path = os.path.join(os.path.dirname(__file__), "othercommands.txt")
+  DB = Path(__file__).parent.parent / "data" / "othercommands.txt"
   channel_id_str = str(noticeChannelID) + "\n"
 
   try:
-    with open(file_path, "r", encoding="utf-8") as f:
+    with open(DB, "r", encoding="utf-8") as f:
       lines = f.readlines()
   except FileNotFoundError:
     lines = []
@@ -259,7 +260,7 @@ async def zset(interaction: discord.Interaction):
   else:
     lines.extend(["noticeChannel\n", channel_id_str])
 
-  with open(file_path, "w", encoding="utf-8") as f:
+  with open(DB, "w", encoding="utf-8") as f:
     f.writelines(lines)
 
   await open_response(interaction, "お休み通知チャンネルを設定しました")
@@ -301,5 +302,6 @@ async def on_message(msg):
           voice_client.play(audio_source)
 #===============================================================
 
-
-client.run(TOKEN)
+if __name__ == "__main__":
+  import asyncio
+  asyncio.run(main())

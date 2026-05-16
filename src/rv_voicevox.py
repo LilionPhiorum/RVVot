@@ -5,10 +5,21 @@ import io
 import discord
 from discord import FFmpegPCMAudio
 from bidict import bidict#双方向辞書
+from pathlib import Path
 
 class VOICEVOX:
-  host="127.0.0.1"#localhost
+  host="voicevox"#localhost
   port=50021
+
+  """voicevoxの接続先設定"""
+  # dockerの時はhostがvoicevox,ローカルの時はlocalhostに切り替わるように
+  @classmethod
+  def _setup(self):
+    try:
+      response = requests.get(f"http://{VOICEVOX.host}:{VOICEVOX.port}", timeout=1)  # 接続
+    except requests.RequestException:  # 接続不可
+      VOICEVOX.host="localhost"
+    
 
   """connecting VOICEVOX"""
   def is_connect(interaction: discord.Interaction):
@@ -54,7 +65,7 @@ class VOICEVOX:
     return VOICEVOX._gene_voice(talking_setting)
 
 class VoiceSet:
-  file_name="rv_voice_dic.txt"
+  DB:Path=Path(__file__).parent.parent / "data" / "rv_voice_dic.txt"
   voice_settings={}#ユーザーIDをキーに声を呼び出すdict
 
   voice_dic=bidict()#話者一覧({名前,id}で構成される)
@@ -66,7 +77,7 @@ class VoiceSet:
   """テキストファイルとして保存しておいたボイス設定を読み込む"""
   #ここをenvに保存出来たらいいかも
   def load_voice():
-    with open(VoiceSet.file_name,"r")as file:
+    with open(VoiceSet.DB,"r")as file:
       for line in file:
         words = line.strip().split()
         VoiceSet.voice_settings[str(words[0])]=words[1]
@@ -82,7 +93,7 @@ class VoiceSet:
     voice = str(voice)
     VoiceSet.voice_settings[usr_id]=voice
     if VoiceSet.seach_id(usr_id):
-      with open(VoiceSet.file_name,"w",encoding="utf-8") as file:
+      with open(VoiceSet.DB,"w",encoding="utf-8") as file:
         for key,value in VoiceSet.voice_settings.items():
           file.write(f"{key} {value}\n")
     else:
@@ -104,3 +115,5 @@ class VoiceSet:
   def get_speaker_name(usr_id):
     usr_id = str(usr_id)
     return VoiceSet.voice_dic.inv.get(int(VoiceSet.get_private_speaker_id(usr_id)))
+
+VOICEVOX._setup()

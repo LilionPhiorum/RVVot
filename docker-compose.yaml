@@ -1,0 +1,28 @@
+services:
+  # サービス名とコンテナ名は共通のほうが管理しやすい
+
+  voicevox:
+    image: voicevox/voicevox_engine:cpu-latest
+    container_name: voicevox
+    ports:
+    # botとvoicevoxを別コンテナにしているため 
+      - "50021:50021"
+    tty: true
+    restart: always
+
+  rvvot:
+    # 下によりCMDが正常に動いていない疑いあり
+    # image: ubuntu:24.04
+    build: ./
+    container_name: rvvot
+    # 下によりDockerfile側でWORKDIRを変更できなくするため、削除
+    # working_dir: /root
+    volumes:
+      - ./src:/root/src
+      # - ./example:/root/example みたいな感じで、必要に応じて追加
+    # envファイルを読み込ませ、環境変数としてコンテナ内で使用できるようにする
+    env_file:
+      - .env
+    tty: true
+    depends_on:
+      - voicevox
