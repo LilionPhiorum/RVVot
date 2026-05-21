@@ -124,4 +124,4 @@ dmypy.json
 .pyre/
 
 # original
-rv_voice_dic.txt
+data/rv_voice_dic.txt
