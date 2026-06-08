@@ -8,6 +8,7 @@ import io
 import os
 from dotenv import load_dotenv
 from pathlib import Path
+import asyncio
 #original module
 import rv_voicevox as RV_voicevox
 import rv_modify as RV_modify
@@ -36,7 +37,7 @@ def main():
 async def on_ready():
   await tree.sync()#コマンド同期
   RV_voicevox.VoiceSet.load_voice()#音声設定同期
-  print("ver 4.2 awaked")
+  print("ver 4.3 awaked")
 #===============================================================
 
 #discord condition checking
@@ -298,10 +299,10 @@ async def on_message(msg):
       audio_stream=io.BytesIO(voice)#音声変換1
       audio_source=FFmpegPCMAudio(audio_stream,pipe=True)#音声変換2
       voice_client = discord.utils.get(client.voice_clients, guild=msg.guild)
-      if not voice_client.is_playing():
-          voice_client.play(audio_source)
+      while voice_client.is_playing():
+        await asyncio.sleep(0.1)  
+      voice_client.play(audio_source)
 #===============================================================
 
 if __name__ == "__main__":
-  import asyncio
-  asyncio.run(main())
+  main()
