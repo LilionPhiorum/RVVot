@@ -6,6 +6,7 @@ import discord
 from discord import FFmpegPCMAudio
 from bidict import bidict#双方向辞書
 from pathlib import Path
+import time 
 
 class VOICEVOX:
   host="voicevox"#localhost
@@ -18,15 +19,25 @@ class VOICEVOX:
     try:
       response = requests.get(f"http://{VOICEVOX.host}:{VOICEVOX.port}", timeout=1)  # 接続
     except requests.RequestException:  # 接続不可
+      print("VOICEVOXへの接続に失敗しました，")
       VOICEVOX.host="localhost"
     
 
   """connecting VOICEVOX"""
   def is_connect(interaction: discord.Interaction):
-    try:
-      response = requests.get(f"http://{VOICEVOX.host}:{VOICEVOX.port}", timeout=1)  # 接続
-      return response.status_code == 200
-    except requests.RequestException:  # 接続不可
+    for i in range(5):
+      try:
+        response = requests.get(f"http://{VOICEVOX.host}:{VOICEVOX.port}", timeout=1)  # 接続
+        if response.status_code == 200:
+          return True
+      except requests.RequestException:  # 接続不可
+        print("VOICEVOXへの接続に失敗しました．再試行します...")
+        time.sleep(3)
+      else:
+        print("VOICEVOXへの接続に成功しました．")
+        return True
+    else:
+      print("VOICEVOXへの接続に失敗しました．")
       return False
 
   def all_voice():
